@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hamburger Drill — 7×7</title>
+  <style>
+    :root {
+      --bg: #1a1a1a;
+      --cell: #252525;
+      --empty: #141414;
+      --text: #e0e0e0;
+      --muted: #888;
+      --accent: #ff6b35;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button {
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { filter: brightness(1.1); }
+    button.secondary {
+      background: #444;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.35rem;
+      width: min(95vw, 500px);
+      aspect-ratio: 1;
+    }
+    .cell {
+      background: var(--cell);
+      border-radius: 0.35rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      position: relative;
+      user-select: none;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .cell:hover:not(.empty) {
+      filter: brightness(1.15);
+    }
+    .cell.empty {
+      background: var(--bg);
+      color: var(--muted);
+      cursor: default;
+    }
+    .cell.empty * {
+      display: none;
+    }
+    .cell.hidden-content .item,
+    .cell.hidden-content .label {
+      visibility: hidden;
+    }
+    .cell.solved {
+      background: var(--cell);
+      cursor: default;
+    }
+    .cell.solved * {
+      display: none;
+    }
+    .coord {
+      font-size: 0.55rem;
+      color: var(--muted);
+      position: absolute;
+      top: 0.15rem;
+      left: 0.25rem;
+    }
+    #quiz {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    #quizQuestion {
+      font-size: 1.5rem;
+      font-weight: 700;
+      transition: opacity 0.15s ease;
+    }
+    #quizQuestion.fade {
+      opacity: 0;
+    }
+    #quizFeedback {
+      margin-top: 0.5rem;
+      color: var(--muted);
+      min-height: 1.2rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Hamburger Drill — 7×7</h1>
+  <div class="controls">
+    <button id="newBoard">Nouvelle grille</button>
+    <button id="debugBtn" class="secondary">Debug</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+
+  <div id="quiz">
+    <div id="quizQuestion"></div>
+  </div>
+  <div id="quizFeedback"></div>
+
+  <script>
+    const INGREDIENTS = [
+      { name: 'tomate', emoji: '🍅' },
+      { name: 'ketchup', emoji: '🍅' },
+      { name: 'moutarde', emoji: '🟡' },
+      { name: 'cornichon', emoji: '🥒' },
+      { name: 'oignon', emoji: '🧅' },
+      { name: 'fromage', emoji: '🧀' },
+      { name: 'galette', emoji: '🟤' },
+      { name: 'laitue', emoji: '🥬' },
+      { name: 'pain', emoji: '🍞' }
+    ];
+    const EMPTY_CELLS = ['A1', 'A7', 'C3', 'C4', 'C5', 'D3', 'D4', 'D5', 'E3', 'E4', 'E5', 'G1', 'G7'];
+    const COLS = 'ABCDEFG';
+    const ROWS = '1234567';
+
+    let assignments = [];
+    let hiddenCells = new Set();
+    let solvedCells = new Set();
+    let currentQuiz = null;
+    let quizRevealed = null;
+    let debugVisible = false;
+
+    function coords() {
+      const out = [];
+      for (const c of COLS) for (const r of ROWS) out.push(c + r);
+      return out;
+    }
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function generateBoard() {
+      const allCells = shuffle(coords());
+      const fillable = allCells.filter(c => !EMPTY_CELLS.includes(c));
+      const pool = [];
+      for (let i = 0; i < 4; i++) {
+        for (const ing of INGREDIENTS) pool.push({ ...ing, set: i + 1 });
+      }
+      shuffle(pool);
+      assignments = [];
+      hiddenCells.clear();
+      solvedCells.clear();
+      currentQuiz = null;
+      quizRevealed = null;
+      debugVisible = false;
+      for (let i = 0; i < fillable.length; i++) {
+        assignments.push({ cell: fillable[i], ...pool[i] });
+        hiddenCells.add(fillable[i]);
+      }
+      draw();
+      document.getElementById('quiz').style.display = 'none';
+      document.getElementById('quizFeedback').textContent = '';
+      setTimeout(newQuiz, 300);
+    }
+
+    function draw() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      for (const r of ROWS) {
+        for (const c of COLS) {
+          const key = c + r;
+          const assigned = assignments.find(a => a.cell === key);
+          const div = document.createElement('div');
+          div.className = 'cell' + (EMPTY_CELLS.includes(key) ? ' empty' : '');
+          if (solvedCells.has(key)) {
+            div.classList.add('solved');
+          } else if (hiddenCells.has(key)) {
+            div.classList.add('hidden-content');
+          }
+          div.dataset.cell = key;
+          if (!solvedCells.has(key)) {
+            div.innerHTML = `<span class="coord">${key}</span>`;
+            if (assigned) {
+              div.innerHTML += `<span class="item">${assigned.emoji}</span><span class="label">${assigned.name}</span>`;
+            }
+          }
+          div.addEventListener('click', () => onCellClick(key));
+          grid.appendChild(div);
+        }
+      }
+    }
+
+    function onCellClick(key) {
+      if (EMPTY_CELLS.includes(key) || solvedCells.has(key)) return;
+      if (quizRevealed) return;
+      quizRevealed = key;
+      hiddenCells.delete(key);
+      draw();
+      document.getElementById('quizFeedback').textContent = '';
+      setTimeout(evaluateQuiz, 1200);
+    }
+
+    function newQuiz() {
+      if (!assignments.length) {
+        generateBoard();
+        return;
+      }
+      const remaining = assignments.filter(a => !solvedCells.has(a.cell));
+      if (!remaining.length) {
+        generateBoard();
+        return;
+      }
+      const pick = remaining[Math.floor(Math.random() * remaining.length)];
+      currentQuiz = pick;
+      quizRevealed = null;
+      hiddenCells.clear();
+      for (const a of assignments) {
+        if (!solvedCells.has(a.cell)) hiddenCells.add(a.cell);
+      }
+      draw();
+      document.getElementById('quiz').style.display = 'block';
+      document.getElementById('quizFeedback').textContent = '';
+      debugVisible = false;
+      const q = document.getElementById('quizQuestion');
+      q.classList.add('fade');
+      setTimeout(() => {
+        q.textContent = pick.name.toUpperCase();
+        q.classList.remove('fade');
+      }, 150);
+    }
+
+    function evaluateQuiz() {
+      if (!currentQuiz || !quizRevealed) return;
+      const chosen = assignments.find(a => a.cell === quizRevealed);
+      const isCorrect = chosen && chosen.name === currentQuiz.name;
+      if (isCorrect) {
+        solvedCells.add(quizRevealed);
+      } else {
+        hiddenCells.add(quizRevealed);
+      }
+      quizRevealed = null;
+      draw();
+      debugVisible = false;
+      setTimeout(newQuiz, 0);
+    }
+
+    document.getElementById('newBoard').addEventListener('click', generateBoard);
+    document.getElementById('debugBtn').addEventListener('click', () => {
+      if (debugVisible) {
+        hiddenCells.clear();
+        for (const a of assignments) {
+          if (!solvedCells.has(a.cell) && a.cell !== quizRevealed) hiddenCells.add(a.cell);
+        }
+      } else {
+        hiddenCells.clear();
+      }
+      debugVisible = !debugVisible;
+      draw();
+    });
+
+    generateBoard();
+  </script>
+</body>
+</html>
