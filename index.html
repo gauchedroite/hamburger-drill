@@ -49,7 +49,7 @@
       display: grid;
       grid-template-columns: repeat(8, 1fr);
       gap: 0.35rem;
-      width: min(95vw, 560px);
+      width: min(95vw, 640px);
       aspect-ratio: 1;
     }
     .cell.header {
@@ -98,11 +98,22 @@
       display: none;
     }
     .coord {
-      font-size: 0.5rem;
+      font-size: 0.65rem;
       color: var(--muted);
       position: absolute;
-      top: 0.15rem;
-      left: 0.25rem;
+      top: 0.1rem;
+      left: 0.2rem;
+      line-height: 1.1;
+      text-align: left;
+    }
+    .item {
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+    .label {
+      font-size: 0.65rem;
+      margin-top: 0.1rem;
+      text-align: center;
     }
     #quiz {
       display: none;
@@ -132,6 +143,12 @@
     <button id="debugBtn" class="secondary">Debug</button>
     <label style="display:flex;align-items:center;gap:0.35rem;color:var(--muted);font-size:0.85rem;">
       <input type="checkbox" id="showLabels"> Labels
+    </label>
+    <label style="display:flex;align-items:center;gap:0.35rem;color:var(--muted);font-size:0.85rem;">
+      <input type="checkbox" id="useLetters"> Lettres
+    </label>
+    <label style="display:flex;align-items:center;gap:0.35rem;color:var(--muted);font-size:0.85rem;">
+      <input type="checkbox" id="mnemo"> Mnémo
     </label>
   </div>
 
@@ -165,6 +182,17 @@
     let quizRevealed = null;
     let debugVisible = false;
     let showLabels = false;
+    let useLetters = false;
+    let mnemo = false;
+
+    const MNEMO_WORDS = ['Doigt','Nez','Main','Rue','Lit','Chat','Quai','Feu','Bain','Tasse','Tutu','Dune','Tamis','Train','Télé','Douche','Tuque','Divan','Toupie','Noce','Newton','Nonne','Némo','Noire','Noël','Niche','Nike','Nef','Nappe','Mousse','Mouton','Monnaie','Momie','Mer','Moulin','Mage','Mac','Mafieux','Mappe','Rose','Radeau','Reine','Romain','Rire','Raël','Ruche','Requin','Ravin','Robe','Lasso','Lutin','Lune','Lama','Lyre','Lilas','Luge','Lac','Louve','Lapin','Chaise','Château','Chaîne','Jumeau','Charrue','Chalet','Juge','Chèque','Cheveux','Chapeau','Gazon','Couteau','Canot','Camion','Coeur','Clou','Cage','Coq','Café','Cube','Fusée','Fête','Fouine','Fumier','Forêt','Violon','Vache','Phoque','Veuve','ViP','Bison','Ponton','Piano','Pommier','Beurre','Ballon','Bûche','Banque','Bouffon','Pipe','Danseuse'];
+
+    function mnemoIndex(key) {
+      const c = key[0];
+      const r = key.slice(1);
+      const num = (COLS.indexOf(c) + 1).toString() + r;
+      return parseInt(num, 10) - 1;
+    }
 
     function coords() {
       const out = [];
@@ -222,7 +250,7 @@
       for (const c of COLS) {
         const rowLabel = document.createElement('div');
         rowLabel.className = 'cell header';
-        rowLabel.textContent = c;
+        rowLabel.textContent = useLetters ? c : (COLS.indexOf(c) + 1).toString();
         grid.appendChild(rowLabel);
 
         for (const r of ROWS) {
@@ -237,7 +265,10 @@
           }
           div.dataset.cell = key;
       if (!solvedCells.has(key)) {
-            div.innerHTML = showLabels ? `<span class="coord">${key}</span>` : '';
+            const parts = [];
+            if (showLabels) parts.push(useLetters ? key : (COLS.indexOf(c) + 1).toString() + r);
+            if (mnemo) parts.push(MNEMO_WORDS[mnemoIndex(key)]);
+            div.innerHTML = parts.length ? `<span class="coord">${parts.join('<br>')}</span>` : '';
             if (assigned) {
               div.innerHTML += `<span class="item">${assigned.emoji}</span><span class="label">${assigned.name}</span>`;
             }
@@ -317,6 +348,14 @@
     });
     document.getElementById('showLabels').addEventListener('change', e => {
       showLabels = e.target.checked;
+      draw();
+    });
+    document.getElementById('useLetters').addEventListener('change', e => {
+      useLetters = e.target.checked;
+      draw();
+    });
+    document.getElementById('mnemo').addEventListener('change', e => {
+      mnemo = e.target.checked;
       draw();
     });
 
