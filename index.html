@@ -47,10 +47,19 @@
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(8, 1fr);
       gap: 0.35rem;
-      width: min(95vw, 500px);
+      width: min(95vw, 560px);
       aspect-ratio: 1;
+    }
+    .cell.header {
+      background: transparent;
+      color: var(--muted);
+      cursor: default;
+      font-weight: 600;
+    }
+    .cell.header:hover {
+      filter: none;
     }
     .cell {
       background: var(--cell);
@@ -65,7 +74,7 @@
       transition: background 0.2s;
       cursor: pointer;
     }
-    .cell:hover:not(.empty) {
+    .cell:hover:not(.empty):not(.header) {
       filter: brightness(1.15);
     }
     .cell.empty {
@@ -83,12 +92,13 @@
     .cell.solved {
       background: var(--cell);
       cursor: default;
+      opacity: 0.4;
     }
     .cell.solved * {
       display: none;
     }
     .coord {
-      font-size: 0.55rem;
+      font-size: 0.5rem;
       color: var(--muted);
       position: absolute;
       top: 0.15rem;
@@ -120,6 +130,9 @@
   <div class="controls">
     <button id="newBoard">Nouvelle grille</button>
     <button id="debugBtn" class="secondary">Debug</button>
+    <label style="display:flex;align-items:center;gap:0.35rem;color:var(--muted);font-size:0.85rem;">
+      <input type="checkbox" id="showLabels"> Labels
+    </label>
   </div>
 
   <div id="grid" class="grid"></div>
@@ -151,6 +164,7 @@
     let currentQuiz = null;
     let quizRevealed = null;
     let debugVisible = false;
+    let showLabels = false;
 
     function coords() {
       const out = [];
@@ -193,8 +207,25 @@
     function draw() {
       const grid = document.getElementById('grid');
       grid.innerHTML = '';
+
+      const corner = document.createElement('div');
+      corner.className = 'cell header';
+      grid.appendChild(corner);
+
       for (const r of ROWS) {
-        for (const c of COLS) {
+        const th = document.createElement('div');
+        th.className = 'cell header';
+        th.textContent = r;
+        grid.appendChild(th);
+      }
+
+      for (const c of COLS) {
+        const rowLabel = document.createElement('div');
+        rowLabel.className = 'cell header';
+        rowLabel.textContent = c;
+        grid.appendChild(rowLabel);
+
+        for (const r of ROWS) {
           const key = c + r;
           const assigned = assignments.find(a => a.cell === key);
           const div = document.createElement('div');
@@ -205,8 +236,8 @@
             div.classList.add('hidden-content');
           }
           div.dataset.cell = key;
-          if (!solvedCells.has(key)) {
-            div.innerHTML = `<span class="coord">${key}</span>`;
+      if (!solvedCells.has(key)) {
+            div.innerHTML = showLabels ? `<span class="coord">${key}</span>` : '';
             if (assigned) {
               div.innerHTML += `<span class="item">${assigned.emoji}</span><span class="label">${assigned.name}</span>`;
             }
@@ -282,6 +313,10 @@
         hiddenCells.clear();
       }
       debugVisible = !debugVisible;
+      draw();
+    });
+    document.getElementById('showLabels').addEventListener('change', e => {
+      showLabels = e.target.checked;
       draw();
     });
 

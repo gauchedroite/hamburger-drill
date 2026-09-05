@@ -32,12 +32,3 @@ A1, A7, C3, C4, C5, D3, D4, D5, E3, E4, E5, G1, G7
 
 - **Nouvelle grille** — generate a fresh board.
 - **Debug** — toggle all cell contents visible or hidden.
-
-## Run locally
-
-```bash
-cd hamburger-drill
-python -m http.server 8000
-```
-
-Then visit `http://localhost:8000`.
